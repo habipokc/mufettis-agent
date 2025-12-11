@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.env
+.env
+.env.*
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/build/
+frontend/dist/
+node_modules/
+.next/
+
+# Project Data
+data/processed/
+data/chunks/
+data/chroma_db/
+data/raw/*.pdf
+
+# IDE & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
