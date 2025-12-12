@@ -13,9 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Müfettiş.ai - Banka Mevzuatı Arama",
-  description: "Türkiye bankacılık mevzuatı üzerine RAG tabanlı yapay zeka destekli arama motoru",
+  title: "Teftiş Agent - Bankacılık Mevzuat Asistanı",
+  description: "Bankacılık mevzuatı (BDDK, TCMB) hakkında Teftiş Agent ile sohbet edin.",
 };
+
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export default function RootLayout({
   children,
@@ -27,7 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

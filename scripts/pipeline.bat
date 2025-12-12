@@ -1,28 +1,32 @@
 @echo off
 echo ==========================================
-echo Mufettis Agent ETL Pipeline
+echo Mufettis Agent ETL Pipeline (v2)
 echo ==========================================
+echo.
 
-echo [step 1/3] Extracting Text & Tables from PDFs...
-poetry run python scripts/extractor.py
+echo [STEP 1/2] Chunking PDFs with Docling...
+echo (This may take a while for large PDFs)
+echo.
+poetry run python scripts/docling_chunker.py
 if %ERRORLEVEL% NEQ 0 (
-    echo Extraction failed.
+    echo ERROR: Chunking failed.
     exit /b %ERRORLEVEL%
 )
 
-echo [step 2/3] Chunking extracted data...
-poetry run python scripts/chunker.py
+echo.
+echo [STEP 2/2] Embedding and Indexing to ChromaDB...
+echo.
+poetry run python scripts/embed_and_index.py
 if %ERRORLEVEL% NEQ 0 (
-    echo Chunking failed.
+    echo ERROR: Embedding failed.
     exit /b %ERRORLEVEL%
 )
 
-echo [step 3/3] Embedding (Requires GEMINI_API_KEY)...
-if "%GEMINI_API_KEY%"=="" (
-    echo WARNING: GEMINI_API_KEY is not set. Skipping embedding step to avoid errors.
-    echo Please set GEMINI_API_KEY in your environment and run 'poetry run python scripts/embed_and_index.py' manually.
-) else (
-    poetry run python scripts/embed_and_index.py
-)
-
-echo Pipeline finished.
+echo.
+echo ==========================================
+echo Pipeline completed successfully!
+echo ==========================================
+echo.
+echo IMPORTANT: Please restart the backend server:
+echo   poetry run uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+echo.

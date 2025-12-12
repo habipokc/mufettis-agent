@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Any, Dict
-from backend.app.services.rag_service import query_rag
+from langchain_core.messages import HumanMessage
+from backend.app.agent.client import app as agent_app
 
 router = APIRouter()
 
@@ -18,26 +19,29 @@ class Source(BaseModel):
 class SearchResponse(BaseModel):
     answer: str
     sources: List[Dict[str, Any]]
-    # debug info
-    # context: str 
 
 @router.post("/", response_model=SearchResponse)
-def search_legislation(request: SearchRequest):
+async def search_legislation(request: SearchRequest):
     try:
-        result = query_rag(request.query, request.top_k)
+        # Agent Invocation
+        inputs = {"messages": [HumanMessage(content=request.query)]}
+        result = await agent_app.ainvoke(inputs)
         
-        # Check for error key in result
-        if isinstance(result, dict) and "error" in result:
-             # Try to identify 429
-             error_msg = str(result["error"])
-             status_code = 429 if "429" in error_msg or "Quota" in error_msg else 500
-             raise HTTPException(status_code=status_code, detail=error_msg)
-             
+        # Extract Answer
+        last_message = result["messages"][-1]
+        answer = last_message.content
+        
+        # Extract Sources (if any, chitchat will have empty list)
+        sources = result.get("sources", [])
+        
         return SearchResponse(
-            answer=result["answer"],
-            sources=result["sources"]
+            answer=answer,
+            sources=sources
         )
-    except HTTPException:
-        raise
     except Exception as e:
+        print(f"Agent Error: {e}")
+        # Identify Quota issues
+        if "429" in str(e) or "Quota" in str(e):
+            raise HTTPException(status_code=429, detail="Google Gemini API kotası doldu.")
+            
         raise HTTPException(status_code=500, detail=str(e))
