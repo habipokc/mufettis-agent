@@ -28,3 +28,8 @@ data/raw/*.pdf
 .idea/
 .DS_Store
 Thumbs.db
+
+# Large Assets
+mevzuat/
+backend/chroma_db/
+scripts/_archive/

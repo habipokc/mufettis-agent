@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ResultListProps } from './ResultList'; // Reusing Source type definition if possible, or defining explicitly
+// import { ResultListProps } from './ResultList'; // Removed unused import
 
 // Define types locally if needed to avoid circular deps, or import from a shared types file
 interface Source {

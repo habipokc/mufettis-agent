@@ -251,9 +251,9 @@ def query_rag(query_text: str, n_results: int = 5) -> Dict[str, Any]:
     print(f"Query: {query_text}")
     print(f"{'='*50}")
     
-    # 1. Hybrid Retrieval (Dense + BM25)
+    # 1. Hybrid Retrieval (Dense + BM25) - Optimized for speed
     print("Step 1: Hybrid retrieval...")
-    candidates = hybrid_retrieve(query_text, n_dense=30, n_sparse=30)
+    candidates = hybrid_retrieve(query_text, n_dense=15, n_sparse=15)
     print(f"  Retrieved {len(candidates)} unique candidates")
     
     if not candidates:
