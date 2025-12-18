@@ -75,7 +75,7 @@ Follow these steps to run Müfettiş Agent on your local machine.
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/mufettis-agent.git
+git clone https://github.com/habipokc/mufettis-agent.git 
 cd mufettis-agent
 ```
 
