@@ -33,3 +33,13 @@ Thumbs.db
 mevzuat/
 backend/chroma_db/
 scripts/_archive/
+
+# AWS
+LightsailDefaultKey-eu-central-1.pem
+deploy_aws.ps1
+
+# Frontend
+frontend.tar.gz
+
+# Documentation
+mufettis-yol.md
