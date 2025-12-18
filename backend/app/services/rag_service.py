@@ -97,17 +97,10 @@ def build_bm25_index():
 build_bm25_index()
 
 # === Initialize Gemini Client (for Generation) ===
-print("Initializing Gemini client...")
-gemini_client = None
-if settings.GEMINI_API_KEY:
-    try:
-        gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        print("✓ Gemini client initialized.")
-    except Exception as e:
-        print(f"Gemini Client Init Error: {e}")
-else:
-    print("⚠ GEMINI_API_KEY not set")
+# MOVED TO query_rag function for dynamic key support
+# gemini_client = None 
 
+# ... (embedding function existing) ...
 
 def get_embedding(text: str) -> List[float]:
     """Generate embedding using local MiniLM model."""
@@ -121,6 +114,7 @@ def get_embedding(text: str) -> List[float]:
 
 
 def hybrid_retrieve(query: str, n_dense: int = 20, n_sparse: int = 20) -> List[Tuple[str, Dict, str, float]]:
+    # ... (function body remains same) ...
     """
     Hybrid retrieval: Dense (embedding) + Sparse (BM25)
     
@@ -196,6 +190,7 @@ def hybrid_retrieve(query: str, n_dense: int = 20, n_sparse: int = 20) -> List[T
 
 
 def rerank_results(query: str, candidates: List[Tuple[str, Dict, str, float]], top_k: int = 5) -> List[Tuple[str, Dict, str, float]]:
+    # ... (function body remains same) ...
     """
     Rerank candidates using Cross-Encoder.
     
@@ -233,12 +228,13 @@ def rerank_results(query: str, candidates: List[Tuple[str, Dict, str, float]], t
         return candidates[:top_k]
 
 
-def query_rag(query_text: str, n_results: int = 5) -> Dict[str, Any]:
+def query_rag(query_text: str, api_key: str = None, n_results: int = 5) -> Dict[str, Any]:
     """
     Main RAG query function with hybrid retrieval and reranking.
     
     Args:
         query_text: User's question
+        api_key: User provided API Key (optional, falls back to settings)
         n_results: Number of final results to use in context (default: 5)
     
     Returns:
@@ -312,15 +308,21 @@ Aşağıdaki mevzuat bölümlerini kullanarak soruyu yanıtla.
 ### YANITINIZ:"""
 
     try:
-        if not gemini_client:
-            raise Exception("Gemini client not initialized")
+        # Determine API Key: Priority User -> Server Env
+        key_to_use = api_key or settings.GEMINI_API_KEY
+        if not key_to_use:
+             raise Exception("No API Key provided (User or Server)")
+
+        # Initialize Client Dynamic
+        local_gemini_client = genai.Client(api_key=key_to_use)
             
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
+        response = local_gemini_client.models.generate_content(
+            model="gemini-2.5-flash-lite",
             contents=prompt
         )
         answer = response.text
         print("  ✓ Answer generated successfully")
+
         
     except Exception as e:
         print(f"  ✗ Generation Error: {e}")

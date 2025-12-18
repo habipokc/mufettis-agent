@@ -55,9 +55,8 @@ export default function ChatMessage({ role, content, sources }: ChatMessageProps
                             {sources.map((src, idx) => {
                                 // Extract filename for display
                                 const fileName = src.source.split('\\').pop()?.split('/').pop() || src.source;
-                                // Construct PDF URL
-                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                                const pdfUrl = `${apiUrl}/pdfs/${fileName}`;
+                                // Use Next.js API proxy route for PDFs (avoids Mixed Content and Docker DNS issues)
+                                const pdfUrl = `/api/pdfs/${encodeURIComponent(fileName)}`;
 
                                 return (
                                     <a

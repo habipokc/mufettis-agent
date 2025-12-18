@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface SearchBoxProps {
     onSearch: (query: string) => void;
@@ -9,6 +9,14 @@ interface SearchBoxProps {
 
 export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
     const [query, setQuery] = useState('');
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Auto-focus textarea when component mounts and after loading completes
+    useEffect(() => {
+        if (!isLoading && textareaRef.current) {
+            textareaRef.current.focus();
+        }
+    }, [isLoading]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,6 +32,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-xl blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
                 <div className="relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-xl shadow-2xl overflow-hidden p-2">
                     <textarea
+                        ref={textareaRef}
                         className="block w-full p-4 text-lg text-slate-900 dark:text-white bg-transparent border-none focus:ring-0 focus:outline-none placeholder-slate-500 dark:placeholder-slate-400 resize-none min-h-[80px]"
                         placeholder="Mevzuatta arama yapın veya sohbet edin (örn: Kredi risk limitleri nelerdir?)"
                         value={query}

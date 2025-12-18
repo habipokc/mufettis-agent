@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import List, Optional, Any, Dict
 from langchain_core.messages import HumanMessage
@@ -21,10 +21,22 @@ class SearchResponse(BaseModel):
     sources: List[Dict[str, Any]]
 
 @router.post("/", response_model=SearchResponse)
-async def search_legislation(request: SearchRequest):
+async def search_legislation(
+    request: SearchRequest, 
+    authorization: Optional[str] = Header(None) # Extract header
+):
     try:
-        # Agent Invocation
-        inputs = {"messages": [HumanMessage(content=request.query)]}
+        # Extract API Key from Header (Bearer token)
+        api_key = ""
+        if authorization and authorization.startswith("Bearer "):
+            api_key = authorization.replace("Bearer ", "").strip()
+        
+        # Agent Invocation with API Key
+        inputs = {
+            "messages": [HumanMessage(content=request.query)],
+            "api_key": api_key 
+        }
+        
         result = await agent_app.ainvoke(inputs)
         
         # Extract Answer

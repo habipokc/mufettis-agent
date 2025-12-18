@@ -16,28 +16,26 @@ from backend.app.core.config import settings
 from backend.app.services.rag_service import query_rag
 import re
 
-# Initialize Model - Only when needed (lazy loading concept)
-# Using 2.0-flash-lite for faster routing
-_llm_lite = None
-
-def get_llm_lite():
-    """Lazy load the LLM to avoid startup delays."""
-    global _llm_lite
-    if _llm_lite is None:
-        _llm_lite = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-lite",  # Faster, cheaper model
-            google_api_key=settings.GEMINI_API_KEY,
-            temperature=0.2,
-            timeout=30  # 30 second timeout
-        )
-    return _llm_lite
+# Initialize Model Factory
+def create_llm_lite(api_key: str):
+    """Create LLM client with user provided key."""
+    if not api_key:
+        raise ValueError("API Key is missing")
+        
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=api_key,
+        temperature=0.2,
+        timeout=30
+    )
 
 
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
     """The state of the agent."""
     messages: Annotated[list[BaseMessage], add_messages]
     intent: str
     sources: list[dict]
+    api_key: str # User provided API Key
 
 
 # === KEYWORD PATTERNS FOR FAST ROUTING ===
@@ -92,29 +90,45 @@ def fast_route(text: str) -> str:
 # === STATIC RESPONSES ===
 
 STATIC_RESPONSES = {
-    "greeting": "Merhaba! Ben Teftiş Agent. Bankacılık mevzuatı, BDDK düzenlemeleri ve denetim süreçleri hakkında size nasıl yardımcı olabilirim?",
+    "greeting": "Merhaba! Ben Müfettiş Agent. Bankacılık mevzuatı, BDDK düzenlemeleri ve denetim süreçleri hakkında size nasıl yardımcı olabilirim?",
     "thanks": "Rica ederim! Başka bir sorunuz olursa yardımcı olmaktan memnuniyet duyarım.",
-    "identity": "Ben Teftiş Agent, banka müfettiş yardımcıları için geliştirilmiş bir yapay zeka asistanıyım. Mevzuat sorularınızı yanıtlayabilirim.",
-    "help": "Size şu konularda yardımcı olabilirim:\n• Bankacılık mevzuatı (kanunlar, yönetmelikler)\n• BDDK ve TCMB düzenlemeleri\n• Denetim süreçleri\n• Finansal terimler ve hesaplamalar\n\nSorunuzu yazmanız yeterli!"
+    "identity": "Ben Müfettiş Agent, banka müfettiş yardımcıları için geliştirilmiş bir yapay zeka asistanıyım. Mevzuat sorularınızı yanıtlayabilirim.",
+    "help": "Size şu konularda yardımcı olabilirim:\n• Bankacılık mevzuatı (kanunlar, yönetmelikler)\n• BDDK ve TCMB düzenlemeleri\n• Denetim süreçleri\n• Finansal terimler ve hesaplamalar\n\nSorunuzu yazmanız yeterli!",
+    "howru": "İyiyim, teşekkür ederim! Bankacılık mevzuatı hakkında sorularınızı yanıtlamaya hazırım. Size nasıl yardımcı olabilirim?",
+    "goodbye": "Görüşmek üzere! Başka sorularınız olduğunda yine beklerim.",
+    "capability": "Ben bankacılık mevzuatı konusunda uzmanlaşmış bir yapay zeka asistanıyım. BDDK yönetmelikleri, kanunlar, tebliğler ve denetim süreçleri hakkında sorularınızı yanıtlayabilirim."
 }
 
 
 def get_static_response(text: str) -> str | None:
     """Return static response if applicable, None otherwise."""
     lower = text.lower().strip()
+    words = lower.split()
     
-    # Greetings
+    # Greetings (short messages only)
     if any(g in lower for g in ["merhaba", "selam", "günaydın", "iyi günler", "iyi akşamlar"]):
-        if len(lower.split()) <= 4:
+        if len(words) <= 4:
             return STATIC_RESPONSES["greeting"]
+    
+    # How are you questions
+    if any(h in lower for h in ["nasılsın", "nasıl gidiyor", "naber", "ne haber", "iyi misin"]):
+        return STATIC_RESPONSES["howru"]
     
     # Thanks
     if any(t in lower for t in ["teşekkür", "sağol", "eyvallah"]):
         return STATIC_RESPONSES["thanks"]
     
     # Identity questions
-    if any(i in lower for i in ["kimsin", "adın ne", "sen ne"]):
+    if any(i in lower for i in ["kimsin", "adın ne", "sen ne", "ne yaparsın", "nesin"]):
         return STATIC_RESPONSES["identity"]
+    
+    # Capability questions
+    if any(c in lower for c in ["neler yapabilirsin", "ne bilirsin", "yeteneklerin"]):
+        return STATIC_RESPONSES["capability"]
+    
+    # Goodbye
+    if any(b in lower for b in ["hoşça kal", "görüşürüz", "bye", "güle güle"]):
+        return STATIC_RESPONSES["goodbye"]
     
     # Help
     if lower in ["yardım", "help", "?"]:
@@ -129,6 +143,7 @@ def router_node(state: AgentState):
     """Fast routing with keyword matching, LLM only as fallback."""
     messages = state["messages"]
     last_message = messages[-1].content
+    api_key = state.get("api_key", settings.GEMINI_API_KEY) # Fallback to settings if empty
     
     # 1. Try fast keyword-based routing
     intent = fast_route(last_message)
@@ -140,7 +155,7 @@ def router_node(state: AgentState):
     # 2. Fallback: Use LLM for ambiguous cases (rare)
     print("[Router] Using LLM fallback...")
     try:
-        llm = get_llm_lite()
+        llm = create_llm_lite(api_key)
         router_prompt = f"""Classify this message as "chitchat" or "search".
 chitchat = greetings, small talk, off-topic
 search = banking, laws, regulations, financial terms
@@ -163,7 +178,8 @@ def chitchat_node(state: AgentState):
     """Handle chitchat with static responses when possible."""
     messages = state["messages"]
     last_message = messages[-1].content
-    
+    api_key = state.get("api_key", settings.GEMINI_API_KEY)
+
     # 1. Try static response first (instant, no API call)
     static = get_static_response(last_message)
     if static:
@@ -173,7 +189,7 @@ def chitchat_node(state: AgentState):
     # 2. Use LLM for complex chitchat (rare)
     print("[Chitchat] Using LLM")
     try:
-        llm = get_llm_lite()
+        llm = create_llm_lite(api_key)
         system = SystemMessage(content="""Sen "Teftiş Agent" adında profesyonel bir asistansın.
 Bankacılık mevzuatı konusunda uzmanlaşmışsın. Kısa ve net cevaplar ver.""")
         
@@ -192,10 +208,12 @@ def retrieval_node(state: AgentState):
     """Execute RAG pipeline."""
     messages = state["messages"]
     query = messages[-1].content
+    api_key = state.get("api_key", settings.GEMINI_API_KEY)
     
     print(f"[RAG] Processing query: {query[:50]}...")
     
-    result = query_rag(query, n_results=5)
+    # Pass api_key to RAG service
+    result = query_rag(query, api_key=api_key, n_results=5)
     
     answer = result.get("answer", "Bir hata oluştu.")
     sources = result.get("sources", [])

@@ -12,6 +12,8 @@ interface Message {
 }
 
 export default function Home() {
+  const [apiKey, setApiKey] = useState('');
+  const [showKeyModal, setShowKeyModal] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -21,6 +23,23 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  // Load API Key on Mount
+  useEffect(() => {
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) {
+      setApiKey(storedKey);
+    } else {
+      setShowKeyModal(true);
+    }
+  }, []);
+
+  const saveApiKey = (key: string) => {
+    if (!key.trim()) return;
+    localStorage.setItem('gemini_api_key', key.trim());
+    setApiKey(key.trim());
+    setShowKeyModal(false);
+  };
+
   const handleSearch = async (query: string) => {
     // 1. Add User Message immediately
     const userMsg: Message = { role: 'user', content: query };
@@ -28,11 +47,15 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // 2. Call API
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${apiUrl}/api/v1/search/`, {
+      // 2. Call API - Use Next.js API proxy route (handles backend communication)
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
+      const res = await fetch('/api/search', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ query, top_k: 5 }),
       });
 
@@ -77,6 +100,44 @@ export default function Home() {
   return (
     <main className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white selection:bg-cyan-500/30 overflow-hidden transition-colors duration-300">
 
+      {/* API Key Modal */}
+      {showKeyModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 rounded-2xl shadow-2xl max-w-md w-full">
+            <h2 className="text-xl font-bold mb-2 text-slate-800 dark:text-white">API Anahtarı Gerekli 🔑</h2>
+            <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">
+              Bu uygulama kendi <strong>Google Gemini API</strong> anahtarınızla çalışır. Anahtarınız sadece tarayıcınızda saklanır.
+            </p>
+            <input
+              type="password"
+              placeholder="AIzaSy..."
+              className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-cyan-500 outline-none mb-4 dark:text-white font-mono text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveApiKey((e.target as HTMLInputElement).value);
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                className="px-4 py-2 text-sm text-cyan-600 hover:text-cyan-500 font-medium"
+              >
+                Anahtar Al
+              </a>
+              <button
+                onClick={(e) => {
+                  const input = e.currentTarget.parentElement?.previousElementSibling as HTMLInputElement;
+                  saveApiKey(input.value);
+                }}
+                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-transform active:scale-95 font-medium"
+              >
+                Kaydet ve Başla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Theme Toggle - Fixed Position */}
       <div className="fixed top-6 right-6 z-[100]">
         <ThemeToggle />
@@ -100,17 +161,31 @@ export default function Home() {
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full blur opacity-30"></div>
                 <div className="relative px-4 py-1 bg-white dark:bg-slate-900 rounded-full border border-slate-200 dark:border-slate-700/50 flex items-center gap-2 shadow-sm">
                   <span className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse"></span>
-                  <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400 tracking-wider uppercase">Teftiş Agent v1.0</span>
+                  <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400 tracking-wider uppercase">Müfettiş Agent v1.0</span>
                 </div>
               </div>
 
               <h1 className="text-5xl md:text-7xl font-bold text-center tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 animate-fade-in-up delay-100">
-                Teftiş <span className="text-cyan-600 dark:text-cyan-500">Agent</span>
+                Müfettiş <span className="text-cyan-600 dark:text-cyan-500">Agent</span>
               </h1>
 
               <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 text-center max-w-2xl animate-fade-in-up delay-200">
                 Bankacılık mevzuatı, kanunlar ve yönetmeliklerde yapay zeka destekli anlık uzman desteği.
               </p>
+
+              {/* Optional: Show current Key status or clear button could go here */}
+              {apiKey && (
+                <div className="mt-4 text-xs text-green-500/80 bg-green-500/10 px-3 py-1 rounded-full cursor-pointer hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                  onClick={() => {
+                    localStorage.removeItem('gemini_api_key');
+                    setApiKey('');
+                    setShowKeyModal(true);
+                  }}
+                  title="Anahtarı Silmek için Tıkla">
+                  🔑 API Anahtarı Aktif (Değiştir)
+                </div>
+              )}
+
             </div>
           )}
 
@@ -148,7 +223,7 @@ export default function Home() {
           <SearchBox onSearch={handleSearch} isLoading={isLoading} />
 
           <div className="text-center text-slate-600 text-xs mt-4 opacity-70">
-            Teftiş Agent hata yapabilir. Lütfen mevzuatı asıl kaynaklardan da kontrol edin.
+            Müfettiş Agent hata yapabilir. Lütfen mevzuatı asıl kaynaklardan da kontrol edin.
           </div>
         </div>
       </div>

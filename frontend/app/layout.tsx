@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Teftiş Agent - Bankacılık Mevzuat Asistanı",
-  description: "Bankacılık mevzuatı (BDDK, TCMB) hakkında Teftiş Agent ile sohbet edin.",
+  title: "Müfettiş Agent - Bankacılık Mevzuat Asistanı",
+  description: "Bankacılık mevzuatı (BDDK, TCMB) hakkında Müfettiş Agent ile sohbet edin.",
 };
 
 import { ThemeProvider } from "@/components/ThemeProvider";
